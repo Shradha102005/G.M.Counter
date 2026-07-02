@@ -52,8 +52,7 @@ export default function Screen0() {
             { key: 'def1', label: 'Important Definitions' },
             { key: 'def2', label: 'Important Definitions – contd...' },
             { key: 'def3', label: 'Important Definitions – contd...' },
-            { key: 'gc601a', label: 'Description on G.M. Counting system GC601A' },
-            { key: 'gc602a', label: 'Description on G.M. Counting system GC602A' },
+            { key: 'gc603t', label: 'Description on G.M. Counting system GC603T' },
             { key: 'features', label: 'Important features' },
 
             { key: 'stand', label: 'Stand for G.M. Detector' },
@@ -531,53 +530,40 @@ export default function Screen0() {
             </>
           )}
 
-          {/* GC601A DESCRIPTION */}
-{selectedSection === 'gc601a' && (
+          {/* GC603T DESCRIPTION */}
+{selectedSection === 'gc603t' && (
   <>
-    <Text style={styles.sectionTitle}>Description on G.M. Counting system GC601A</Text>
+    <Text style={styles.sectionTitle}>Description on G.M. Counting system GC603T</Text>
+
     <Text style={styles.paragraph}>
-      Nucleonix Systems offers two models of G.M. Counting Systems: an economy model GC601A
-      with optimal features and the GC602A with more advanced features. GC601A is an Advanced
-      Technology–based, economy model designed around an 8-bit microcontroller. With accessories,
-      it is ideal for teaching/demonstrating various G.M. experiments in Experimental Physics labs
-      for U.G./P.G. Science and Engineering students. Other streams such as Radiation Physics,
-      Radiochemistry, Radiation Biology and Agricultural Sciences can also use this system.
+      The GM Counter Smart Card with Tablet is a microcontroller-based radiation counting system designed for accurate and reliable measurement of radiation events. The unit incorporates a built-in adjustable high-voltage supply for connecting to a variety of Geiger-Müller (G.M.) detectors.
     </Text>
     <Text style={styles.paragraph}>
-      This counting system can be used for carrying out a number of Nuclear Physics experiments.
-    </Text>
-
-    {/* GC601A front & rear panel image */}
-    <Image
-      source={require('../assets/images/601.jpeg')}
-      style={{
-        width: 900,
-        height: 300,
-        alignSelf: 'center',
-        marginVertical: 10,
-        resizeMode: 'contain',
-      }}
-    />
-  </>
-)}
-
-
-          {/* GC602A DESCRIPTION */}
-{selectedSection === 'gc602a' && (
-  <>
-    <Text style={styles.sectionTitle}>Description on G.M. Counting system GC602A</Text>
-    <Text style={styles.paragraph}>
-      Geiger Counting System type GC602A is an Advanced Technology–based, versatile,
-      integral counting system designed around an 8-bit microcontroller chip. It is highly
-      recommended for research work, while also being very useful for academic teaching.
-      Together with a wide end-window G.M. Tube (e.g., GM125) and a Lead Castle, it makes
-      an excellent Beta Counting System for swipe sample counting in Health Physics Labs.
+      The system features integrated ADC (Analog-to-Digital Converter) and DAC (Digital-to-Analog Converter) functions, enabling precise signal processing, measurement, and control. It also includes built-in counting, timing, data storage, detector monitoring, and calibration functions. The high-voltage output can be conveniently adjusted and controlled through commands from the Android tablet application.
     </Text>
     <Text style={styles.paragraph}>
-      This counting system is useful for carrying out a number of Nuclear Physics experiments.
+      Measuring parameters include preset count values, count rate, high-voltage settings, and system status are displayed and controlled through the Android tablet application.
+    </Text>
+    <Text style={styles.paragraph}>
+      Wireless communication between the GM Counter and the Android tablet is established through Bluetooth technology, allowing real-time data transfer, monitoring, configuration, and high-voltage adjustment without the need for physical cables.
+    </Text>
+    <Text style={styles.paragraph}>
+      The compact design, advanced electronics, built-in processing capabilities, and user-friendly tablet interface make the system suitable for laboratory experiments, educational purposes, and advanced nuclear radiation monitoring applications in a nuclear plants or environmental survey labs etc.. with appropriate detectors
     </Text>
 
-    {/* GC602A front & rear panel image */}
+    <Text style={[styles.paragraph, { fontWeight: '700', marginTop: 8 }]}>Important Features of GM Counter smart card with Android Tablet</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Compact, reliable, and suitable for laboratory experiments involving radiation detection and counting.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Android tablet-based display for monitoring high voltage, preset time, count value, count rate, and other operating parameters.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} User-friendly Android tablet application for system operation, parameter configuration, data acquisition, and real-time monitoring of measurement results.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Adjustable high-voltage supply from 0 to 1200 V DC with a maximum current of 0.5 mA and ripple less than 20 mV.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Maximum counting capacity of 999,999 counts.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Programmable timer with a preset range of 1 to 9,999 seconds.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} MHV connector for connecting to the G.M. detector for obtaining pulse output.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Data can be transferred to a PC through a USB Type-C interface for storage, analysis, and report generation.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Supports communication with Android applications for data viewing, logging, and management.</Text>
+    <Text style={styles.paragraph}>{'\u2022'} Both GM counter smart card & Android tab work on 5volts power supply</Text>
+
+    {/* GC603T front & rear panel image */}
     <Image
       source={require('../assets/images/602.jpeg')}
       style={{
@@ -591,25 +577,20 @@ export default function Screen0() {
   </>
 )}
 
-          {/* IMPORTANT FEATURES (both models) */}
+          {/* IMPORTANT FEATURES */}
           {selectedSection === 'features' && (
             <>
-              <Text style={styles.sectionTitle}>Important features</Text>
-              <Text style={styles.paragraph}>{'\u2022'} High voltage output: (0 to 1500 V) @ 2 mA, ripple &lt; 20 mV.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Visual display: 16×2 LCD dot-matrix character display indicates HV, preset time, time counts, and other parameters.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Counts capacity: 999999 counts.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Preset time: (1–9999) sec.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} User interface: Front-panel keypad (START, STOP, PROG, STORE, INC(s), DEC(t)).</Text>
-              <Text style={styles.paragraph}>{'\u2022'} G.M. pulse output: Rear-panel BNC socket (inverted output).</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Power: 220 V ±10% A.C., 50 Hz.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Memory storage: Built-in memory to store up to 1000 readings.</Text>
-
-              <Text style={[styles.paragraph, {fontWeight: '700', marginTop: 6}]}>
-                Additional features available on GC602A only:
-              </Text>
-              <Text style={styles.paragraph}>{'\u2022'} Printer port (Centronics): Built-in port for data printing.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} Paralysis time: Variable paralysis time OFF, 250, 350 &amp; 550 μsec.</Text>
-              <Text style={styles.paragraph}>{'\u2022'} RS232C: Built-in serial port for data communication to PC.</Text>
+              <Text style={styles.sectionTitle}>Important Features of GM Counter smart card with Android Tablet</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Compact, reliable, and suitable for laboratory experiments involving radiation detection and counting.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Android tablet-based display for monitoring high voltage, preset time, count value, count rate, and other operating parameters.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} User-friendly Android tablet application for system operation, parameter configuration, data acquisition, and real-time monitoring of measurement results.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Adjustable high-voltage supply from 0 to 1200 V DC with a maximum current of 0.5 mA and ripple less than 20 mV.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Maximum counting capacity of 999,999 counts.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Programmable timer with a preset range of 1 to 9,999 seconds.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} MHV connector for connecting to the G.M. detector for obtaining pulse output.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Data can be transferred to a PC through a USB Type-C interface for storage, analysis, and report generation.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Supports communication with Android applications for data viewing, logging, and management.</Text>
+              <Text style={styles.paragraph}>{'\u2022'} Both GM counter smart card & Android tab work on 5volts power supply</Text>
             </>
           )}
 

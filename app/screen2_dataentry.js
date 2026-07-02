@@ -30,16 +30,20 @@ const findCountColumn = (rows) => {
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] || [];
     let countIndex = -1;
+    let timeIndex = -1;
 
     row.forEach((cell, cellIndex) => {
       const header = normalizeHeader(cell);
       if (countIndex === -1 && (header === 'count' || header === 'counts' || header === 'correctedcount' || header === 'correctedcounts' || header === 'npreset')) {
         countIndex = cellIndex;
       }
+      if (timeIndex === -1 && (header === 'time' || header === 'presettime' || header === 'presettimes' || header === 'preset' || header === 't' || header === 'ts' || header.startsWith('presettime'))) {
+        timeIndex = cellIndex;
+      }
     });
 
     if (countIndex !== -1) {
-      return { headerRowIndex: rowIndex, countIndex };
+      return { headerRowIndex: rowIndex, countIndex, timeIndex };
     }
   }
 
@@ -51,10 +55,14 @@ const formatCellText = (value) => {
   return value.toString().trim();
 };
 
-// Default fixed 10 rows (add more with Add Row button)
+// Default distances: 2.0, 2.5, 3.0 … 6.5 (step 0.5, 10 rows)
+const DEFAULT_DISTANCES = Array.from({ length: FIXED_ROW_COUNT }, (_, i) =>
+  (2.0 + i * 0.5).toFixed(1)
+);
+
 const initialRows = Array.from({ length: FIXED_ROW_COUNT }).map((_, i) => ({
   sn: String(i + 1),
-  d: '',
+  d: DEFAULT_DISTANCES[i],
   N: '',
   R: '',
   C: '',
@@ -66,17 +74,17 @@ const initialRows = Array.from({ length: FIXED_ROW_COUNT }).map((_, i) => ({
 
 const normalizeRows = (rowsLike) => {
   const safe = Array.isArray(rowsLike) ? rowsLike : [];
-  
+
   // Preserve all rows (allow unlimited additions)
   const processed = safe.map((r, i) => ({
-    ...(r || { sn: String(i + 1), d: '', N: '', R: '', C: '', invd2: '', logd: '', logR: '', manualR: false }),
+    ...(r || { sn: String(i + 1), d: DEFAULT_DISTANCES[i] ?? '', N: '', R: '', C: '', invd2: '', logd: '', logR: '', manualR: false }),
     sn: String(i + 1),
   }));
 
-  // Ensure at least 10 rows exist initially
+  // Ensure at least 10 rows exist, with default distances pre-filled
   while (processed.length < FIXED_ROW_COUNT) {
     const i = processed.length;
-    processed.push({ sn: String(i + 1), d: '', N: '', R: '', C: '', invd2: '', logd: '', logR: '', manualR: false });
+    processed.push({ sn: String(i + 1), d: DEFAULT_DISTANCES[i] ?? '', N: '', R: '', C: '', invd2: '', logd: '', logR: '', manualR: false });
   }
 
   return processed;
@@ -204,15 +212,24 @@ export default function Screen2DataEntry() {
         return;
       }
 
-      const importedRows = sheetRows
+      const dataRows = sheetRows
         .slice(mapping.headerRowIndex + 1)
-        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''))
-        .map((row, index) => {
-          const countValue = formatCellText(row[mapping.countIndex]);
+        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''));
 
-          return {
+      // Extract preset time from the first data row if a time column was found
+      const presetTimeValue =
+        mapping.timeIndex >= 0 && dataRows.length > 0
+          ? formatCellText(dataRows[0][mapping.timeIndex])
+          : '';
+
+      setRows((prevRows) => {
+        const importedRows = dataRows.map((row, index) => {
+          const countValue = formatCellText(row[mapping.countIndex]);
+          const existingD = prevRows[index]?.d ?? DEFAULT_DISTANCES[index] ?? '';
+
+          return recomputeRow({
             sn: String(index + 1),
-            d: '',
+            d: existingD,
             N: countValue,
             R: '',
             C: '',
@@ -220,16 +237,16 @@ export default function Screen2DataEntry() {
             logd: '',
             logR: '',
             manualR: false,
-          };
+          });
         });
+        return importedRows;
+      });
 
-      const nextRows = importedRows.map((row) => recomputeRow({ ...row }));
-
-      setRows(nextRows);
+      if (presetTimeValue) setPresetTime(presetTimeValue);
 
       Alert.alert(
         'Import Complete',
-        `Loaded ${importedRows.length} row(s) from ${asset.name || 'the Excel file'}.`
+        `Loaded ${dataRows.length} row(s) from ${asset.name || 'the Excel file'}.`
       );
     } catch (error) {
       console.error('Excel import error:', error);
@@ -470,7 +487,7 @@ export default function Screen2DataEntry() {
                     </>
                   ) : (
                     <>
-                      {/* N editable; R may be manual if you type in it */}
+                      {/* N editable; R auto-computed from N / T — read-only */}
                       <TextInput
                         style={styles.inputCell}
                         keyboardType="numeric"
@@ -478,17 +495,7 @@ export default function Screen2DataEntry() {
                         onChangeText={(t) => updateCell(t, idx, 'N')}
                       />
 
-                      <TextInput
-                        style={styles.inputCell}
-                        keyboardType="numeric"
-                        value={r.R}
-                        onChangeText={(t) => updateManualR(t, idx)}
-                        onBlur={() =>
-                          setRows((prev) =>
-                            prev.map((row, i) => (i !== idx ? row : recomputeRow(row)))
-                          )
-                        }
-                      />
+                      <Text style={[styles.cell, styles.readOnly]}>{r.R}</Text>
 
                       <Text style={[styles.cell, styles.readOnly]}>{r.C}</Text>
                       <Text style={[styles.cell, styles.readOnly]}>{r.invd2}</Text>

@@ -35,6 +35,7 @@ const findImportColumns = (rows) => {
     let ehtIndex = -1;
     let countIndex = -1;
     let backgroundIndex = -1;
+    let timeIndex = -1;
 
     row.forEach((cell, cellIndex) => {
       const header = normalizeHeader(cell);
@@ -50,10 +51,14 @@ const findImportColumns = (rows) => {
       if (backgroundIndex === -1 && (header === 'background' || header === 'bg' || header === 'bkg')) {
         backgroundIndex = cellIndex;
       }
+
+      if (timeIndex === -1 && (header === 'time' || header === 'presettime' || header === 'presettimes' || header === 'preset' || header === 't' || header === 'ts' || header.startsWith('presettime'))) {
+        timeIndex = cellIndex;
+      }
     });
 
     if (ehtIndex !== -1 && countIndex !== -1) {
-      return { headerRowIndex: rowIndex, ehtIndex, countIndex, backgroundIndex };
+      return { headerRowIndex: rowIndex, ehtIndex, countIndex, backgroundIndex, timeIndex };
     }
   }
 
@@ -71,18 +76,51 @@ const buildRowsFromImportedSheet = (sheetRows, mapping) => {
     return cells.some((cell) => formatCellText(cell) !== '');
   });
 
-  const nextRows = dataRows.map((row, index) => {
-    const eht = formatCellText(row[mapping.ehtIndex]);
-    const counts = formatCellText(row[mapping.countIndex]);
-    const background = mapping.backgroundIndex >= 0 ? formatCellText(row[mapping.backgroundIndex]) : '';
-    const countValue = parseNumericInput(counts);
-    const backgroundValue = parseNumericInput(background) || 0;
-    const corrected = countValue !== null ? String(countValue - backgroundValue) : '';
+  if (dataRows.length === 0) {
+    return { rows: [], presetTimeValue: '' };
+  }
 
-    return [String(index + 1), eht, counts, background, corrected];
-  });
+  // ── Experiment-1 new logic ──────────────────────────────────────────────
+  // • Process data rows in pairs (i = 0, 2, 4...)
+  // • Odd rows (index i) provide the alternative EHT and the Background counts.
+  // • Even rows (index i+1) provide the Counts.
+  // ────────────────────────────────────────────────────────────────────────────
 
-  return nextRows;
+  const nextRows = [];
+  
+  for (let i = 0; i < dataRows.length - 1; i += 2) {
+    const bgRow = dataRows[i];      // Odd row (0, 2, 4...)
+    const countRow = dataRows[i + 1]; // Even row (1, 3, 5...)
+
+    // EHT from alternative HV rows (the odd row)
+    const eht = formatCellText(bgRow[mapping.ehtIndex]);
+
+    // Background from odd row counts column
+    const bgCountStr = formatCellText(bgRow[mapping.countIndex]);
+    const bgCountValue = parseNumericInput(bgCountStr) || 0;
+
+    // Counts from even row counts column
+    const countStr = formatCellText(countRow[mapping.countIndex]);
+    const countValue = parseNumericInput(countStr);
+
+    const corrected = countValue !== null ? String(countValue - bgCountValue) : '';
+
+    nextRows.push([
+      String(nextRows.length + 1),
+      eht,
+      countStr,
+      String(bgCountValue),
+      corrected
+    ]);
+  }
+
+  // Extract preset time from the first data row if a time column exists
+  const presetTimeValue =
+    mapping.timeIndex >= 0 && dataRows.length > 0
+      ? formatCellText(dataRows[0][mapping.timeIndex])
+      : '';
+
+  return { rows: nextRows, presetTimeValue };
 };
 
 // Default rows (10 rows initially, add more with Add Row button)
@@ -179,10 +217,11 @@ export default function Screen1DataEntry() {
         return;
       }
 
-      const importedRows = buildRowsFromImportedSheet(sheetRows, mapping);
+      const { rows: importedRows, presetTimeValue } = buildRowsFromImportedSheet(sheetRows, mapping);
 
       setRows(importedRows);
       setAutoCorrected(importedRows.map(() => true));
+      if (presetTimeValue) setPresetTime(presetTimeValue);
 
       Alert.alert(
         'Import Complete',
@@ -276,7 +315,8 @@ export default function Screen1DataEntry() {
   const effectiveV2 = useMemo(() => {
     const manual = parseNumericInput(v2);
     if (manual !== null) return manual;
-    return validPoints.length ? validPoints[validPoints.length - 1].v : null;
+    // Default: second-to-last valid point (last - 1)
+    return validPoints.length >= 2 ? validPoints[validPoints.length - 2].v : null;
   }, [v2, validPoints]);
 
   // Computations
@@ -340,10 +380,10 @@ export default function Screen1DataEntry() {
     }
   };
 
-  const chartWidth = Math.max(240, graphBoxWidth - 24);
+  const chartWidth = Math.max(280, graphBoxWidth - 24);
   const chartHeight = BOX_HEIGHT - 24;
   const chartPoints = safeChartData?.labels.length ?? 1;
-  const chartContentWidth = Math.max(chartWidth, chartPoints * 50);
+  const chartContentWidth = Math.max(chartWidth, chartPoints * 60);
 
   return (
     <View style={styles.screen} ref={contentRef} collapsable={false}>
@@ -413,10 +453,9 @@ export default function Screen1DataEntry() {
                     />
 
                     <TextInput
-                      style={styles.inputCell}
+                      style={[styles.inputCell, styles.readOnly]}
                       value={r[4]}
-                      onChangeText={t => updateCell(t, i, 4)}
-                      keyboardType="numeric"
+                      editable={false}
                     />
                   </View>
                 ))}
@@ -524,17 +563,17 @@ export default function Screen1DataEntry() {
           <View style={styles.computeWrap}>
             <View style={styles.compItem}>
               <Text style={styles.vLabel}>Plateau Length (V)</Text>
-              <TextInput style={styles.vInput} editable={false} value={plateauLength} />
+              <TextInput style={[styles.vInput, styles.readOnly]} editable={false} value={plateauLength} />
             </View>
 
             <View style={styles.compItem}>
               <Text style={styles.vLabel}>Slope (%/100V)</Text>
-              <TextInput style={styles.vInput} editable={false} value={slopePercent} />
+              <TextInput style={[styles.vInput, styles.readOnly]} editable={false} value={slopePercent} />
             </View>
 
             <View style={styles.compItem}>
               <Text style={styles.vLabel}>Operating Voltage (V)</Text>
-              <TextInput style={styles.vInput} editable={false} value={operatingVoltage} />
+              <TextInput style={[styles.vInput, styles.readOnly]} editable={false} value={operatingVoltage} />
             </View>
           </View>
 

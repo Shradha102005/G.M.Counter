@@ -80,7 +80,7 @@ export default function Screen5() {
               </Text>
 
               <Text style={styles.sectionSubtitle}>EQUIPMENT / ACCESSORIES REQUIRED</Text>
-              <Text style={styles.paragraph}>{"\u2022"} G.M. Counting System GC 601A/ GC602A</Text>
+              <Text style={styles.paragraph}>{"\u2022"} G.M. Counting System GC603T</Text>
               <Text style={styles.paragraph}>{"\u2022"} G.M. Detector / source holder stand (SG200) or bench (SB201)</Text>
               <Text style={styles.paragraph}>{"\u2022"} Radioactive source kit (SK210)</Text>
               <Text style={styles.paragraph}>{"\u2022"} G.M. detector in cylindrical enclosure (GM120)</Text>
@@ -88,9 +88,9 @@ export default function Screen5() {
 
               <Text style={styles.sectionSubtitle}>PROCEDURE</Text>
               <Text style={styles.paragraph}>
-                {"\u2022"} Make interconnections such as mains power cord to GC601A/602A unit
+                {"\u2022"} Make interconnections such as mains power cord to GC603T unit
                 and connection between G.M. detector holder mount to rear panel of
-                GC601/602, through HV cable.
+                GC603T, through HV cable.
               </Text>
               <Text style={styles.paragraph}>
                 {"\u2022"} Place a gamma source in the source holder facing the end window

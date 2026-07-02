@@ -93,7 +93,7 @@ export default function Screen8() {
           {selectedSection === 'equipment' && (
             <>
               <Text style={styles.sectionTitle}>EQUIPMENT AND ACCESSORIES REQUIRED</Text>
-              <Text style={styles.paragraph}>• Electronic Unit (GC 601A / GC602A)</Text>
+              <Text style={styles.paragraph}>• Electronic Unit (GC 603T)</Text>
               <Text style={styles.paragraph}>• G.M Detector (GM125)</Text>
               <Text style={styles.paragraph}>• G.M. Detector Holder</Text>
               <Text style={styles.paragraph}>• Sliding Bench</Text>
@@ -108,7 +108,7 @@ export default function Screen8() {
             <>
               <Text style={styles.sectionTitle}>PROCEDURE</Text>
               <Text style={styles.paragraph}>
-                Make a standard setup by connecting the GM counting system GC602A with the GM detector (GM125) placed
+                Make a standard setup by connecting the GM counting system GC603T with the GM detector (GM125) placed
                 in the optical bench as shown in the experiment setup.
               </Text>
               <Text style={styles.paragraph}>

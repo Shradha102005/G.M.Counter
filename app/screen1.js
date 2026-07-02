@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Image,
 } from 'react-native';
 import { Table, Row } from 'react-native-table-component';
@@ -17,6 +16,7 @@ import { useRouter } from "expo-router";
 
 export default function Screen1() {
   const [selectedSection, setSelectedSection] = useState('study');
+  const [graphBoxWidth, setGraphBoxWidth] = useState(0);
   const [tableData, setTableData] = useState([
     ['1', '330', '0', '0', '0'],
     ['2', '360', '1710', '35', '1675'],
@@ -56,6 +56,8 @@ export default function Screen1() {
 
   const xValues = tableData.map((row) => parseInt(row[1]) || 0);
   const yValues = tableData.map((row) => parseInt(row[4]) || 0);
+  const chartWidth = Math.max(280, graphBoxWidth - 24);
+  const chartContentWidth = Math.max(chartWidth, xValues.length * 60);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F7F1BE' }}>
@@ -126,7 +128,7 @@ export default function Screen1() {
               </Text>
 
               <Text style={styles.sectionTitle}>EQUIPMENT REQUIRED</Text>
-              <Text style={styles.paragraph}>• G.M. Counting System GC601A/GC602A</Text>
+              <Text style={styles.paragraph}>• G.M. Counting System GC603T</Text>
 
               <Text style={styles.sectionTitle}>PROCEDURE</Text>
               <Text style={styles.paragraph}>• Make the connection between the counting system...</Text>
@@ -178,30 +180,32 @@ export default function Screen1() {
             <>
               <Text style={styles.sectionTitle}>Analysis & Computation</Text>
 
-              <View style={styles.chartBox}>
+              <View style={styles.chartBox} onLayout={(event) => setGraphBoxWidth(event.nativeEvent.layout.width)}>
                 <Text style={styles.chartTitle}>G.M. Characteristics</Text>
 
-                <LineChart
-                  data={{
-                    labels: xValues.map(String),
-                    datasets: [{ data: yValues }],
-                  }}
-                  width={Dimensions.get('window').width * 0.62}
-                  height={190}
-                  chartConfig={{
-                    backgroundGradientFrom: '#fff',
-                    backgroundGradientTo: '#fff',
-                    decimalPlaces: 0,
-                    color: () => '#000',
-                    labelColor: () => '#000',
-                    propsForDots: { r: '3', strokeWidth: '1', stroke: '#000', fill: '#000' },
-                  }}
-                  withShadow={false}
-                  withInnerLines={false}
-                  withOuterLines
-                  bezier={false}
-                  style={{ alignSelf: 'center' }}
-                />
+                <ScrollView horizontal showsHorizontalScrollIndicator>
+                  <LineChart
+                    data={{
+                      labels: xValues.map(String),
+                      datasets: [{ data: yValues }],
+                    }}
+                    width={chartContentWidth}
+                    height={350}
+                    chartConfig={{
+                      backgroundGradientFrom: '#fff',
+                      backgroundGradientTo: '#fff',
+                      decimalPlaces: 0,
+                      color: () => '#000',
+                      labelColor: () => '#000',
+                      propsForDots: { r: '3', strokeWidth: '1', stroke: '#000', fill: '#000' },
+                    }}
+                    withShadow={false}
+                    withInnerLines={false}
+                    withOuterLines
+                    bezier={false}
+                    style={{ alignSelf: 'center' }}
+                  />
+                </ScrollView>
 
                 <View style={styles.axisLabels}>
                   <Text style={styles.yLabel}>Corrected Counts (30 s)</Text>

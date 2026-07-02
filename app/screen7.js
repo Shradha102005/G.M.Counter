@@ -78,7 +78,7 @@ export default function Screen7() {
 
               <Text style={styles.bold}>EQUIPMENT/ACCESSORIES REQUIRED</Text>
               <Text style={styles.paragraph}>
-                G.M. Counting system                     Type: GC 601A/GC602A {'\n'}
+                G.M. Counting system                     Type: GC 603T {'\n'}
                 G.M. Stand                                      Type: SG 200 {'\n'}
                 End window G.M detector               Type: GM 120 {'\n'}
                 Short Half life source (Neutron activated Indium foil or Cs-137/Ba-137m isotope generator, flask with eluting solution for generator)

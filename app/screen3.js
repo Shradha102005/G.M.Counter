@@ -228,7 +228,7 @@ export default function Screen3() {
               <Text style={styles.sectionTitle}>EXPERIMENT (A)</Text>
 
               <Text style={styles.paragraph}>
-                Make standard set up by connecting G.M. Counting System GC 601A/602A with G.M. Detector placed in the optical bench or G.M stand as shown in Figure (2 or 3).
+                Make standard set up by connecting G.M. Counting System GC603T with G.M. Detector placed in the optical bench or G.M stand as shown in Figure (2 or 3).
               </Text>
 
               <Text style={styles.paragraph}>
@@ -507,7 +507,7 @@ export default function Screen3() {
 
               <View style={styles.bulletPoint}>
                 <Text style={styles.paragraph}>
-                  Record counts typically for a preset time of 25 sec, and take 50 data readings.
+                  Record counts typically for a preset time of 25 sec, and take 100 data readings or more as required.
                 </Text>
               </View>
 

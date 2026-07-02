@@ -27,16 +27,20 @@ const findCountColumn = (rows) => {
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] || [];
     let countIndex = -1;
+    let timeIndex = -1;
 
     row.forEach((cell, cellIndex) => {
       const header = normalizeHeader(cell);
       if (countIndex === -1 && (header === 'count' || header === 'counts' || header === 'countreading')) {
         countIndex = cellIndex;
       }
+      if (timeIndex === -1 && (header === 'time' || header === 'presettime' || header === 'presettimes' || header === 'preset' || header === 't' || header === 'ts')) {
+        timeIndex = cellIndex;
+      }
     });
 
     if (countIndex !== -1) {
-      return { headerRowIndex: rowIndex, countIndex };
+      return { headerRowIndex: rowIndex, countIndex, timeIndex };
     }
   }
 
@@ -71,7 +75,10 @@ export default function Screen4DataEntry() {
 
   const [rows, setRows] = useState(initialRows);
   const [graphBoxWidth, setGraphBoxWidth] = useState(0);
-  const [absorber, setAbsorber] = useState('');
+  const [absorber, setAbsorber] = useState('Aluminium');
+  const [absorberDropdownOpen, setAbsorberDropdownOpen] = useState(false);
+  const absorberOptions = ['Aluminium', 'Lead', 'Copper'];
+  
   const [I0, setI0] = useState('');
   const [rho, setRho] = useState('');
   const [mu, setMu] = useState('');
@@ -119,15 +126,22 @@ export default function Screen4DataEntry() {
         return;
       }
 
-      const importedCounts = sheetRows
+      const dataRows = sheetRows
         .slice(mapping.headerRowIndex + 1)
-        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''))
+        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''));
+
+      const importedCounts = dataRows
         .map((row) => formatCellText(row[mapping.countIndex]))
         .filter((value) => value !== '');
 
       if (!importedCounts.length) {
         Alert.alert('Import Error', 'No count values were found below the header row.');
         return;
+      }
+
+      if (mapping.timeIndex !== -1 && dataRows.length > 0) {
+        const firstTime = formatCellText(dataRows[0][mapping.timeIndex]);
+        if (firstTime) setPresetTime(firstTime);
       }
 
       const rowCount = Math.ceil(importedCounts.length / 2);
@@ -308,32 +322,62 @@ export default function Screen4DataEntry() {
         <View style={styles.leftPane}>
 
           {/* absorber + preset time in same row */}
-          <View style={styles.absorberRow}>
-            <Text style={styles.absorberLabel}>Enter absorber set type</Text>
-            <TextInput
-              style={styles.absorberInput}
-              value={absorber}
-              onChangeText={setAbsorber}
-              placeholder=""
-            />
+          <View style={[styles.absorberRow, { zIndex: 100 }]}>
+            <View style={[styles.inputGroup, { zIndex: 100 }]}>
+              <Text style={styles.absorberLabel} numberOfLines={1}>Absorber type</Text>
+              
+              <View style={{ position: 'relative' }}>
+                <TouchableOpacity
+                  style={styles.dropdownBtn}
+                  onPress={() => setAbsorberDropdownOpen(!absorberDropdownOpen)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.dropdownBtnText}>{absorber}</Text>
+                  <Text style={styles.dropdownArrow}>{absorberDropdownOpen ? '▲' : '▼'}</Text>
+                </TouchableOpacity>
 
-            <Text style={styles.presetLabel}>Background</Text>
-            <TextInput
-              style={styles.presetInput}
-              keyboardType="numeric"
-              value={bgCount}
-              onChangeText={setBgCount}
-              placeholder=""
-            />
+                {absorberDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    {absorberOptions.map(opt => (
+                      <TouchableOpacity
+                        key={opt}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setAbsorber(opt);
+                          setAbsorberDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemText}>{opt}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
 
-            <Text style={styles.presetLabel}>Preset time</Text>
-            <TextInput
-              style={styles.presetInput}
-              keyboardType="numeric"
-              value={presetTime}
-              onChangeText={setPresetTime}
-              placeholder=""
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.presetLabel} numberOfLines={1}>Background</Text>
+              <TextInput
+                style={styles.presetInput}
+                keyboardType="numeric"
+                value={bgCount}
+                onChangeText={setBgCount}
+                placeholder=""
+                scrollEnabled={false}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.presetLabel} numberOfLines={1}>Preset time</Text>
+              <TextInput
+                style={styles.presetInput}
+                keyboardType="numeric"
+                value={presetTime}
+                onChangeText={setPresetTime}
+                placeholder=""
+                scrollEnabled={false}
+              />
+            </View>
           </View>
 
           <View style={[styles.tableBox, { height: BOX_HEIGHT }]}>
@@ -349,7 +393,7 @@ export default function Screen4DataEntry() {
 
             {/* Scrollable Data Rows */}
             <ScrollView
-              showsVerticalScrollIndicator={true}
+              showsVerticalScrollIndicator={false}
               style={{ flex: 1 }}
             >
               {rows.map((r, rIdx) => (
@@ -545,29 +589,67 @@ const styles = StyleSheet.create({
 
   leftPane: { width: '46%', padding: 12, backgroundColor: '#F7F1BE' },
 
-  // preset time styles (unchanged)
-  presetLabel: { fontWeight: '800' },
+  presetLabel: { fontWeight: '800', fontSize: 13 },
   presetInput: {
-    width: 120,
-    height: 36,
+    width: 80,
+    height: 34,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#bbb',
     borderRadius: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
     textAlign: 'center',
   },
 
-  absorberRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  absorberLabel: { fontWeight: '800' },
-  absorberInput: {
-    width: 180,
-    height: 36,
+  absorberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8, zIndex: 100 },
+  inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 100 },
+  absorberLabel: { fontWeight: '800', fontSize: 13 },
+  dropdownBtn: {
+    width: 110,
+    height: 34,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#bbb',
     borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 8,
+  },
+  dropdownBtnText: {
+    fontSize: 13,
+    color: '#000',
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#555',
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: 38,
+    left: 0,
+    width: 110,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#bbb',
+    borderRadius: 6,
+    zIndex: 200,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    color: '#000',
   },
   tableBox: {
     borderWidth: 1,

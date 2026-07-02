@@ -20,6 +20,7 @@ import { File } from 'expo-file-system';
 import * as XLSX from 'xlsx';
 
 const DEFAULT_ROW_COUNT = 10;
+const MAX_ROW_COUNT = 200;
 const BOX_HEIGHT = 440;
 const CELL_W = 107;
 const SNO_W = 50;
@@ -61,7 +62,7 @@ const getRowCount = (rawN) => {
   if (!digitsOnly) return DEFAULT_ROW_COUNT;
   const parsed = parseInt(digitsOnly, 10);
   if (!Number.isFinite(parsed)) return DEFAULT_ROW_COUNT;
-  return Math.max(1, Math.min(50, parsed));
+  return Math.max(1, Math.min(MAX_ROW_COUNT, parsed));
 };
 
 export default function Screen3DataEntry() {
@@ -279,8 +280,7 @@ export default function Screen3DataEntry() {
   const available = screenW - 14 * 2 - SIDE_GAP - 2; // content padding + gap + tiny fudge
   const panelWidth = Math.floor(available / 2);       // equal width for left & right
 
-  // ✅ FIXED: chart height no longer grows with number of rows
-  const scaledChartHeight = BOX_HEIGHT - 40;
+  const chartHeight = BOX_HEIGHT - 24;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F7F1BE' }} ref={contentRef} collapsable={false}>
@@ -319,141 +319,124 @@ export default function Screen3DataEntry() {
 
         {/* Equal panels */}
         <View style={styles.content}>
-        {/* LEFT: Table (styled like screen1 table) */}
-        <View style={[styles.panel, { height: BOX_HEIGHT, width: panelWidth }]}>
-          <View style={styles.tableBox}>
-            {/* 1. Horizontal Scroll for the entire column structure */}
-            <ScrollView
-              horizontal
-              style={styles.tableScrollX}
-              contentContainerStyle={{ paddingRight: 0 }}
-              showsHorizontalScrollIndicator={true}
-            >
-              <View style={{ alignSelf: 'flex-start' }}>
-                {/* Header (measures height, moves horizontally) */}
-                <View style={[styles.row, styles.headRow]}>
-                  {['S.No.', 'Ni', 'di=(Ni−N)', '√N or σ', '(Ni−N)/σ', '(Ni−N)/σ (Rnd)'].map((h, idx) => (
-                    <Text
-                      key={idx}
-                      style={[
-                        styles.cell,
-                        styles.headCell,
-                        { width: idx === 0 ? SNO_W : CELL_W },
-                      ]}
-                    >
-                      {h}
-                    </Text>
-                  ))}
-                </View>
-
-                {/* 2. Vertical Scroll for data rows only */}
-                <ScrollView 
-                  showsVerticalScrollIndicator={true}
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ flexDirection: 'column' }} 
-                >
-                  {rows.map((r, i) => {
-                    const d = derived[i] || { Ni: '', di: '', sigma: '', z: '', zRound: '' };
-                    return (
-                      <View key={i} style={styles.row}>
-                        {/* S.No. */}
-                        <Text style={[styles.cell, styles.readOnly, { width: SNO_W }]}>{r.sno}</Text>
-                        {/* Ni (editable) */}
-                        <TextInput
-                          value={NiValues[i] ?? ''}
-                          onChangeText={t => setNiAt(i, t)}
-                          keyboardType="numeric"
-                          style={[styles.inputCell, { width: CELL_W }]}
-                        />
-                        {/* di (computed, 1 decimal) - auto colored */}
-                        <TextInput
-                          value={d.di === '' ? '' : String(d.di)}
-                          editable={false}
-                          style={[styles.inputCell, styles.autoCell, { width: CELL_W }]}
-                        />
-                        {/* sigma (computed, 1 decimal) - auto colored */}
-                        <TextInput
-                          value={d.sigma === '' ? '' : String(d.sigma)}
-                          editable={false}
-                          style={[styles.inputCell, styles.autoCell, { width: CELL_W }]}
-                        />
-                        {/* z (computed, 1 decimal) - auto colored */}
-                        <TextInput
-                          value={d.z === '' ? '' : String(d.z)}
-                          editable={false}
-                          style={[styles.inputCell, styles.autoCell, { width: CELL_W }]}
-                        />
-                        {/* z rounded (computed, integer) - auto colored */}
-                        <TextInput
-                          value={d.zRound === '' ? '' : d.zRound}
-                          editable={false}
-                          style={[styles.inputCell, styles.autoCell, { width: CELL_W }]}
-                        />
-                      </View>
-                    );
-                  })}
-                </ScrollView>
+          {/* LEFT: Table */}
+          <View style={[styles.leftPane, { width: panelWidth }]}>
+            <View style={[styles.tableBox, { height: BOX_HEIGHT }]}>
+              {/* Header */}
+              <View style={[styles.row, styles.headRow]}>
+                {['S.No.', 'Ni', 'di=(Ni−N)', '√N or σ', '(Ni−N)/σ', '(Ni−N)/σ (Rnd)'].map((h, idx) => (
+                  <Text
+                    key={idx}
+                    style={[
+                      styles.cell,
+                      styles.headCell,
+                      idx === 0 ? { flex: 0.6 } : null
+                    ]}
+                  >
+                    {h}
+                  </Text>
+                ))}
               </View>
-            </ScrollView>
+
+              {/* Data rows */}
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                style={{ flex: 1 }}
+              >
+                {rows.map((r, i) => {
+                  const d = derived[i] || { Ni: '', di: '', sigma: '', z: '', zRound: '' };
+                  return (
+                    <View key={i} style={styles.row}>
+                      {/* S.No. */}
+                      <Text style={[styles.cell, styles.readOnly, { flex: 0.6 }]}>{r.sno}</Text>
+                      {/* Ni (editable) */}
+                      <TextInput
+                        value={NiValues[i] ?? ''}
+                        onChangeText={t => setNiAt(i, t)}
+                        keyboardType="numeric"
+                        style={styles.inputCell}
+                      />
+                      {/* di (computed, 1 decimal) */}
+                      <TextInput
+                        value={d.di === '' ? '' : String(d.di)}
+                        editable={false}
+                        style={[styles.inputCell, styles.readOnly]}
+                      />
+                      {/* sigma (computed, 1 decimal) */}
+                      <TextInput
+                        value={d.sigma === '' ? '' : String(d.sigma)}
+                        editable={false}
+                        style={[styles.inputCell, styles.readOnly]}
+                      />
+                      {/* z (computed, 1 decimal) */}
+                      <TextInput
+                        value={d.z === '' ? '' : String(d.z)}
+                        editable={false}
+                        style={[styles.inputCell, styles.readOnly]}
+                      />
+                      {/* z rounded (computed, integer) */}
+                      <TextInput
+                        value={d.zRound === '' ? '' : d.zRound}
+                        editable={false}
+                        style={[styles.inputCell, styles.readOnly]}
+                      />
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Buttons underneath the table on the left */}
+            <View style={styles.controlsRow}>
+              <TouchableOpacity style={styles.bigBtn} onPress={importExcelFile}>
+                <Text style={styles.bigBtnText}>Upload Excel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bigBtn} onPress={clearData}>
+                <Text style={styles.bigBtnText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bigBtn} onPress={saveImage}>
+                <Text style={styles.bigBtnText}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bigBtn} onPress={() => router.push('/hub')}>
+                <Text style={styles.bigBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* Gap */}
-        <View style={{ width: SIDE_GAP }} />
+          {/* Gap */}
+          <View style={{ width: SIDE_GAP }} />
 
-        {/* RIGHT: Graph (equal size, chart height fixed) */}
-        <View style={[styles.panel, { height: BOX_HEIGHT, width: panelWidth }]}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.chartContainer}
-            showsVerticalScrollIndicator
-          >
-            {/* Y-Axis Label: FREQUENCY OF OCCURRANCE (NOW IN ALL CAPS) */}
-            <Text style={styles.yAxisLabel}>FREQUENCY OF OCCURRANCE</Text>
-            
-            <LineChart
-              data={{
-                labels: chartData.labels,
-                datasets: chartData.datasets,
-              }}
-              width={panelWidth - innerPad}
-              height={scaledChartHeight}
-              chartConfig={{
-                backgroundGradientFrom: '#ffffff',
-                backgroundGradientTo: '#ffffff',
-                decimalPlaces: 0,
-                color: () => '#000',
-                labelColor: () => '#000',
-                propsForDots: { r: '3', strokeWidth: '1', stroke: '#000', fill: '#000' },
-                propsForBackgroundLines: { strokeDasharray: '' },
-              }}
-              withInnerLines
-              withOuterLines
-              bezier={false}
-              style={styles.chart}
-              fromZero
-            />
-
-            {/* X-Axis Label: ROUNDED OF VALUES */}
-            <Text style={styles.xAxisLabel}>ROUNDED OF VALUES</Text>
-          </ScrollView>
-        </View>
-        </View>
-
-        {/* Bottom actions */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity style={[styles.btn, styles.greyBtn]} onPress={importExcelFile}>
-            <Text style={styles.btnText}>Upload Excel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.greyBtn]} onPress={clearData}>
-            <Text style={styles.btnText}>Clear</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.greyBtn]} onPress={saveImage}>
-            <Text style={styles.btnText}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.btn, styles.greyBtn]} onPress={() => router.push('/hub')}>
-            <Text style={styles.btnText}>Close</Text>
-          </TouchableOpacity>
+          {/* RIGHT: Graph */}
+          <View style={[styles.rightPane, { width: panelWidth }]}>
+            <Text style={styles.graphTitle}>GRAPH — Frequency of Occurrence</Text>
+            <View style={[styles.graphBox, { height: BOX_HEIGHT }]}>
+              <View style={styles.chartWrap}>
+                <LineChart
+                  data={{
+                    labels: chartData.labels,
+                    datasets: chartData.datasets,
+                  }}
+                  width={panelWidth - 40}
+                  height={chartHeight}
+                  chartConfig={{
+                    backgroundGradientFrom: '#ffffff',
+                    backgroundGradientTo: '#ffffff',
+                    decimalPlaces: 0,
+                    color: () => '#000',
+                    labelColor: () => '#000',
+                    propsForDots: { r: '3', strokeWidth: '1', stroke: '#000', fill: '#000' },
+                    propsForBackgroundLines: { strokeDasharray: '' },
+                  }}
+                  withInnerLines
+                  withOuterLines
+                  bezier={false}
+                  fromZero
+                />
+                <Text style={styles.yAxisLabel}>counts</Text>
+                <Text style={styles.xAxisLabel}>ROUNDED OF VALUES</Text>
+              </View>
+            </View>
+          </View>
         </View>
       </View>
     </View>
@@ -512,13 +495,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 6,
   },
-  panel: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#9e9e9e',
-    borderRadius: 12,
-    padding: 14,
-  },
+  leftPane: {},
+  rightPane: {},
 
   /* ====== TABLE STYLES matching screen1 ====== */
   tableBox: {
@@ -528,17 +506,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 0,
-    marginBottom: 0,
+    marginBottom: 10,
     overflow: 'hidden',
-    height: '100%',
   },
-  tableScrollX: {},
-  row: { flexDirection: 'row' },
+  row: { flexDirection: 'row', width: '100%' },
   headRow: { backgroundColor: '#a6a6a6' },
   cell: {
-    width: CELL_W,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#dcdcdc',
     textAlign: 'center',
@@ -547,62 +524,62 @@ const styles = StyleSheet.create({
   },
   headCell: { fontSize: 13 },
   inputCell: {
-    width: CELL_W,
-    paddingVertical: 5,
-    paddingHorizontal: 6,
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#dcdcdc',
     textAlign: 'center',
     backgroundColor: '#fff',
     fontSize: 12,
   },
-  // Slightly darker shade for auto-calculated/uneditable cells
-  autoCell: {
-    backgroundColor: '#f0f0f0',
-  },
   readOnly: { backgroundColor: '#eee' },
 
-  // actions
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 12,
+  // controls
+  controlsRow: { flexDirection: 'row', gap: 12, marginTop: 12, flexWrap: 'wrap' },
+  bigBtn: {
+    backgroundColor: '#808080',
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: 10
   },
-  btn: {
-    paddingVertical: 12,
-    paddingHorizontal: 26,
-    borderRadius: 9,
-  },
-  greyBtn: { backgroundColor: '#808080' },
-  btnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  bigBtnText: { fontWeight: '800', color: '#fff', fontSize: 15 },
 
-  // CHART LABEL STYLES
-  chartContainer: { 
-    alignItems: 'center', 
-    paddingVertical: 6,
-    position: 'relative',
+  graphTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  graphBox: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    overflow: 'hidden'
   },
-  chart: { 
-    alignSelf: 'center',
-    marginLeft: 25,
+  chartWrap: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   yAxisLabel: {
-    transform: [{ rotate: '-90deg' }],
     position: 'absolute',
-    // ADJUSTED: Moved further left and added zIndex for visibility
-    left: -45, 
+    left: 4,
     top: '50%',
-    marginTop: -50,
+    transform: [{ rotate: '-90deg' }, { translateY: -8 }],
     fontWeight: '700',
-    fontSize: 11,
-    color: '#000',
-    zIndex: 10, 
+    fontSize: 13,
   },
   xAxisLabel: {
+    position: 'absolute',
+    bottom: 4,
+    left: '50%',
+    transform: [{ translateX: -18 }],
     fontWeight: '700',
-    fontSize: 11,
-    marginTop: 5, 
-    color: '#000',
+    fontSize: 13,
   },
 });

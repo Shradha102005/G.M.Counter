@@ -86,7 +86,7 @@ export default function Screen6() {
 
               {/* Equipment */}
               <Text style={styles.boldHeading}>EQUIPMENT/ACCESSORIES REQUIRED</Text>
-              <Text style={styles.paragraph}>{`\u2022`} G.M Counting System GC601A / GC602A.</Text>
+              <Text style={styles.paragraph}>{`\u2022`} G.M Counting System GC603T.</Text>
               <Text style={styles.paragraph}>{`\u2022`} G.M Detector (End window) stand (or) G.M Detector/source holder bench</Text>
               <Text style={styles.paragraph}>{`\u2022`} Radioactive source kit</Text>
               <Text style={styles.paragraph}>{`\u2022`} Aluminium absorber set</Text>

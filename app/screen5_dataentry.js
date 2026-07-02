@@ -12,35 +12,179 @@ import {
 import { useRouter } from 'expo-router';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
+import * as XLSX from 'xlsx';
 
 const TITLE = 'Efficiency Of GM Detector';
 const PANEL_HEIGHT = 340;
+
+// ── Excel helpers ──────────────────────────────────────────────────────────
+const normalizeHeader = (value) =>
+  (value ?? '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * Scan the sheet for a header row that contains a "time" column AND/OR
+ * a "counts" column.  Returns { headerRowIndex, timeIndex, countIndex }.
+ * Either timeIndex or countIndex may be -1 if not found.
+ */
+const findColumns = (sheetRows) => {
+  for (let rowIndex = 0; rowIndex < sheetRows.length; rowIndex += 1) {
+    const row = sheetRows[rowIndex] || [];
+    let timeIndex = -1;
+    let countIndex = -1;
+
+    row.forEach((cell, cellIndex) => {
+      const h = normalizeHeader(cell);
+      if (timeIndex === -1 && (h === 'time' || h === 'presettime' || h === 'presettimes' || h === 'preset' || h === 't' || h === 'ts')) {
+        timeIndex = cellIndex;
+      }
+      if (
+        countIndex === -1 &&
+        (h === 'count' || h === 'counts' || h === 'countreading' || h === 'n' || h === 'npreset')
+      ) {
+        countIndex = cellIndex;
+      }
+    });
+
+    if (timeIndex !== -1 || countIndex !== -1) {
+      return { headerRowIndex: rowIndex, timeIndex, countIndex };
+    }
+  }
+  return null;
+};
+
+const formatCell = (value) =>
+  value === null || value === undefined ? '' : value.toString().trim();
+
+/**
+ * Open an Excel file and extract values from the first two data rows.
+ * Returns { row1Time, row1Count, row2Count } – any may be '' if not found.
+ */
+const pickExcelValues = async () => {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ],
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+
+  if (result.canceled) return null;
+
+  const asset = result.assets?.[0];
+  if (!asset) {
+    Alert.alert('Import Error', 'Could not read the selected Excel file.');
+    return null;
+  }
+
+  const workbookFile = new File(asset);
+  const base64 = await workbookFile.base64();
+  const workbook = XLSX.read(base64, { type: 'base64' });
+  const sheetName = workbook.SheetNames?.[0];
+
+  if (!sheetName) {
+    Alert.alert('Import Error', 'The workbook does not contain any sheets.');
+    return null;
+  }
+
+  const sheet = workbook.Sheets[sheetName];
+  const sheetRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const mapping = findColumns(sheetRows);
+
+  if (!mapping) {
+    Alert.alert(
+      'Import Error',
+      'Could not find a Time / Counts column in the selected sheet.'
+    );
+    return null;
+  }
+
+  const dataRows = sheetRows
+    .slice(mapping.headerRowIndex + 1)
+    .filter((row) => (row || []).some((cell) => formatCell(cell) !== ''));
+
+  const row1 = dataRows[0] || [];
+  const row2 = dataRows[1] || [];
+
+  return {
+    row1Time: mapping.timeIndex !== -1 ? formatCell(row1[mapping.timeIndex]) : '',
+    row1Count: mapping.countIndex !== -1 ? formatCell(row1[mapping.countIndex]) : '',
+    row2Count: mapping.countIndex !== -1 ? formatCell(row2[mapping.countIndex]) : '',
+  };
+};
 
 export default function DataEntryScreen() {
   const router = useRouter();
   const contentRef = useRef(null);
 
+  // ── Gamma left-panel state ────────────────────────────────────────────────
   const [T, setT] = useState('');
   const [Nb, setNb] = useState('');
   const [Ns, setNs] = useState('');
+  const [nnsVal, setNnsVal] = useState('');
+
+  // ── Gamma right-panel state (eta / fraction) ──────────────────────────────
   const [geomFrac, setGeomFrac] = useState('');
   const [Ag, setAg] = useState('');
-
-  const [nnsVal, setNnsVal] = useState('');
   const [regVal, setRegVal] = useState('');
   const [egVal, setEgVal] = useState('');
 
-  // Beta source states
+  // ── Beta left-panel state ─────────────────────────────────────────────────
   const [betaTb, setBetaTb] = useState('');
   const [betaNb, setBetaNb] = useState('');
   const [betaNs, setBetaNs] = useState('');
-  const [betaAb, setBetaAb] = useState('');
-
   const [betaCpsVal, setBetaCpsVal] = useState('');
+
+  // ── Beta right-panel state ────────────────────────────────────────────────
+  const [betaAb, setBetaAb] = useState('');
   const [betaDpsVal, setBetaDpsVal] = useState('');
   const [betaEbVal, setBetaEbVal] = useState('');
 
-  // Calculate only Nns (left panel)
+  // ── Excel imports ─────────────────────────────────────────────────────────
+
+  /** Upload Excel for the GAMMA measurement panel */
+  const importGammaExcel = async () => {
+    try {
+      const vals = await pickExcelValues();
+      if (!vals) return;
+
+      // Row 1 → preset time (T) + background counts (Nb)
+      if (vals.row1Time) setT(vals.row1Time);
+      if (vals.row1Count) setNb(vals.row1Count);
+      // Row 2 → source counts (Ns)
+      if (vals.row2Count) setNs(vals.row2Count);
+
+      Alert.alert('Gamma Import', 'Time, background counts, and source counts loaded from Excel.');
+    } catch (error) {
+      console.error('Gamma Excel import error:', error);
+      Alert.alert('Import Error', `Could not import: ${error.message || error}`);
+    }
+  };
+
+  /** Upload Excel for the BETA measurement panel */
+  const importBetaExcel = async () => {
+    try {
+      const vals = await pickExcelValues();
+      if (!vals) return;
+
+      // Row 1 → preset time (Tb) + background counts (betaNb)
+      if (vals.row1Time) setBetaTb(vals.row1Time);
+      if (vals.row1Count) setBetaNb(vals.row1Count);
+      // Row 2 → source counts (betaNs)
+      if (vals.row2Count) setBetaNs(vals.row2Count);
+
+      Alert.alert('Beta Import', 'Time, background counts, and source counts loaded from Excel.');
+    } catch (error) {
+      console.error('Beta Excel import error:', error);
+      Alert.alert('Import Error', `Could not import: ${error.message || error}`);
+    }
+  };
+
+
+  // ── Calculations ──────────────────────────────────────────────────────────
+
   const handleCalculateLeft = () => {
     const t = Number(T);
     const nb = Number(Nb);
@@ -55,25 +199,19 @@ export default function DataEntryScreen() {
   };
 
   const handleClearLeft = () => {
-    setT('');
-    setNb('');
-    setNs('');
-    setNnsVal('');
+    setT(''); setNb(''); setNs(''); setNnsVal('');
   };
 
-  // Calculate Reg and Eg (right panel)
   const handleCalculateRight = () => {
-    const g = Number(geomFrac); // this is (d² / 16D²)
-    const ag = Number(Ag);      // activity A
+    const g = Number(geomFrac);
+    const ag = Number(Ag);
 
-    // 🔁 CHANGED: Reg = A × (d² / 16D²)
     let reg = NaN;
     if (isFinite(g) && g > 0 && isFinite(ag) && ag > 0) {
       reg = ag * g;
     }
     setRegVal(isFinite(reg) ? reg.toFixed(2) : '');
 
-    // same logic as before to get Nns
     let nnsNumber = null;
     if (nnsVal !== '') {
       const parsed = Number(nnsVal);
@@ -88,8 +226,6 @@ export default function DataEntryScreen() {
       }
     }
 
-    // 🔁 CHANGED: Eg = [Nns / Reg] × 100
-    // (numerically same as your old formula, since Reg = Ag × geomFrac now)
     if (nnsNumber != null && isFinite(reg) && reg > 0) {
       const eg = (nnsNumber / reg) * 100;
       setEgVal(isFinite(eg) ? eg.toFixed(2) : '');
@@ -99,10 +235,7 @@ export default function DataEntryScreen() {
   };
 
   const handleClearRight = () => {
-    setGeomFrac('');
-    setAg('');
-    setRegVal('');
-    setEgVal('');
+    setGeomFrac(''); setAg(''); setRegVal(''); setEgVal('');
   };
 
   const handleClearAll = () => {
@@ -119,7 +252,6 @@ export default function DataEntryScreen() {
     ]);
   };
 
-  // Calculate CPS and Eb for beta source (left-bottom panel)
   const handleCalculateBetaLeft = () => {
     const tb = Number(betaTb);
     const nb = Number(betaNb);
@@ -134,24 +266,16 @@ export default function DataEntryScreen() {
   };
 
   const handleClearBetaLeft = () => {
-    setBetaTb('');
-    setBetaNb('');
-    setBetaNs('');
-    setBetaCpsVal('');
+    setBetaTb(''); setBetaNb(''); setBetaNs(''); setBetaCpsVal('');
   };
 
-  // Calculate DPS and Eb for beta source (right-bottom panel)
   const handleCalculateBetaRight = () => {
     const ab = Number(betaAb);
 
-    // DPS = Activity in disintegrations per second
     let dps = NaN;
-    if (isFinite(ab) && ab > 0) {
-      dps = ab;
-    }
+    if (isFinite(ab) && ab > 0) dps = ab;
     setBetaDpsVal(isFinite(dps) ? dps.toFixed(2) : '');
 
-    // Get CPS (either from input or calculate)
     let cpsNumber = null;
     if (betaCpsVal !== '') {
       const parsed = Number(betaCpsVal);
@@ -166,7 +290,6 @@ export default function DataEntryScreen() {
       }
     }
 
-    // Absolute Efficiency: Eb = [CPS / DPS] × 100
     if (cpsNumber != null && isFinite(dps) && dps > 0) {
       const eb = (cpsNumber / dps) * 100;
       setBetaEbVal(isFinite(eb) ? eb.toFixed(2) : '');
@@ -176,15 +299,13 @@ export default function DataEntryScreen() {
   };
 
   const handleClearBetaRight = () => {
-    setBetaAb('');
-    setBetaDpsVal('');
-    setBetaEbVal('');
+    setBetaAb(''); setBetaDpsVal(''); setBetaEbVal('');
   };
 
   const saveImage = async () => {
     try {
       if (!contentRef.current) {
-        Alert.alert("Error", "Content not ready for capture.");
+        Alert.alert('Error', 'Content not ready for capture.');
         return;
       }
 
@@ -195,13 +316,12 @@ export default function DataEntryScreen() {
 
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permission Required", "Please allow media access to save the image.");
+        Alert.alert('Permission Required', 'Please allow media access to save the image.');
         return;
       }
 
       const asset = await MediaLibrary.createAssetAsync(uri);
       await MediaLibrary.createAlbumAsync('GM Lab', asset, false).catch(() => null);
-
       Alert.alert('Saved Successfully', 'Image saved to device gallery.');
     } catch (error) {
       console.error('SAVE ERROR:', error);
@@ -226,9 +346,13 @@ export default function DataEntryScreen() {
       <View style={styles.topSeparator} />
 
       <View style={styles.captureArea}>
-        {/* Two Pane Layout */}
+        {/* ── GAMMA SOURCE SECTION ─────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>GAMMA SOURCE - Intrinsic Efficiency</Text>
+        </View>
+
         <View style={[styles.content, styles.gammaContent]}>
-          {/* LEFT PANEL */}
+          {/* LEFT PANEL – Gamma measurements */}
           <View style={styles.pane}>
             <View style={[styles.panel, styles.gammaPanel]}>
               <Field
@@ -255,6 +379,9 @@ export default function DataEntryScreen() {
               />
 
               <View style={styles.panelButtonWrap}>
+                <TouchableOpacity style={[styles.btn, styles.closeBtn]} onPress={importGammaExcel}>
+                  <Text style={styles.btnText}>Upload Excel</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={[styles.btn, styles.closeBtn]} onPress={handleCalculateLeft}>
                   <Text style={styles.btnText}>Calculate</Text>
                 </TouchableOpacity>
@@ -267,7 +394,7 @@ export default function DataEntryScreen() {
 
           <View style={styles.midGap} />
 
-          {/* RIGHT PANEL */}
+          {/* RIGHT PANEL – Gamma eta / efficiency */}
           <View style={styles.pane}>
             <View style={[styles.panel, styles.gammaPanel]}>
               <Field
@@ -303,16 +430,13 @@ export default function DataEntryScreen() {
           </View>
         </View>
 
-        {/* BETA SOURCE SECTION TITLE AND PANELS */}
-        <View style={{ paddingHorizontal: 14, paddingTop: 10 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 6, color: '#000' }}>
-            BETA SOURCE - Intrinsic Efficiency
-          </Text>
+        {/* ── BETA SOURCE SECTION ──────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>BETA SOURCE - Intrinsic Efficiency</Text>
         </View>
 
-        {/* Two Pane Layout - BETA */}
         <View style={[styles.content, styles.betaContent]} collapsable={false}>
-          {/* LEFT PANEL - BETA */}
+          {/* LEFT PANEL – Beta measurements */}
           <View style={styles.pane}>
             <View style={[styles.panel, styles.betaPanel]}>
               <Field
@@ -339,6 +463,9 @@ export default function DataEntryScreen() {
               />
 
               <View style={styles.panelButtonWrap}>
+                <TouchableOpacity style={[styles.btn, styles.closeBtn]} onPress={importBetaExcel}>
+                  <Text style={styles.btnText}>Upload Excel</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={[styles.btn, styles.closeBtn]} onPress={handleCalculateBetaLeft}>
                   <Text style={styles.btnText}>Calculate</Text>
                 </TouchableOpacity>
@@ -351,7 +478,7 @@ export default function DataEntryScreen() {
 
           <View style={styles.midGap} />
 
-          {/* RIGHT PANEL - BETA */}
+          {/* RIGHT PANEL – Beta eta / efficiency */}
           <View style={styles.pane}>
             <View style={[styles.panel, styles.betaPanel]}>
               <Field
@@ -380,6 +507,8 @@ export default function DataEntryScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── Bottom action row ─────────────────────────────────────────── */}
         <View className="actionsRow" style={styles.actionsRow}>
           <TouchableOpacity style={[styles.btn, styles.closeBtn]} onPress={handleClearAll}>
             <Text style={styles.btnText}>Clear All</Text>
@@ -443,6 +572,17 @@ const styles = StyleSheet.create({
   logo: { width: 70, height: 70 },
   topSeparator: { height: 2, backgroundColor: '#000', width: '100%' },
 
+  sectionHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000',
+  },
+
   content: {
     flexDirection: 'row',
     paddingHorizontal: 8,
@@ -452,7 +592,6 @@ const styles = StyleSheet.create({
   gammaContent: { flexShrink: 0 },
   betaContent: { flexShrink: 0 },
   pane: { flex: 1 },
-  panelWrap: { paddingBottom: 8 },
   panel: {
     height: PANEL_HEIGHT,
     backgroundColor: '#fff',
@@ -462,8 +601,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
   },
-  gammaPanel: { height: 285 },
-  betaPanel: { height: 268 },
+  gammaPanel: { height: 268 },
+  betaPanel: { height: 258 },
   midGap: { width: 8 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
   label: { flex: 1, fontSize: 13, fontWeight: '600', color: '#000', paddingRight: 4 },
@@ -487,6 +626,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     flexDirection: 'row',
     gap: 6,
+    flexWrap: 'wrap',
   },
   actionsRow: {
     flexDirection: 'row',
@@ -496,7 +636,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     marginTop: 0,
   },
-  btn: { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 9 },
+  btn: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9 },
   closeBtn: { backgroundColor: '#808080' },
-  btnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  btnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });

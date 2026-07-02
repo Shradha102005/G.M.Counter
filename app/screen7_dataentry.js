@@ -27,16 +27,20 @@ const findCountColumn = (rows) => {
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] || [];
     let countIndex = -1;
+    let timeIndex = -1;
 
     row.forEach((cell, cellIndex) => {
       const header = normalizeHeader(cell);
       if (countIndex === -1 && (header === 'count' || header === 'counts' || header === 'countreading')) {
         countIndex = cellIndex;
       }
+      if (timeIndex === -1 && (header === 'time' || header === 'presettime' || header === 'presettimes' || header === 'preset' || header === 't' || header === 'ts')) {
+        timeIndex = cellIndex;
+      }
     });
 
     if (countIndex !== -1) {
-      return { headerRowIndex: rowIndex, countIndex };
+      return { headerRowIndex: rowIndex, countIndex, timeIndex };
     }
   }
 
@@ -60,7 +64,7 @@ const initialRows = Array.from({ length: 10 }).map((_, i) => [
 export default function Screen7DataEntry() {
   const router = useRouter();
   const contentRef = useRef(null);
-  
+
   const [rows, setRows] = useState(initialRows);
   const [bgPerMin, setBgPerMin] = useState('');
   const [graphBoxWidth, setGraphBoxWidth] = useState(0);
@@ -106,9 +110,11 @@ export default function Screen7DataEntry() {
         return;
       }
 
-      const importedCounts = sheetRows
+      const dataRows = sheetRows
         .slice(mapping.headerRowIndex + 1)
-        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''))
+        .filter((row) => (row || []).some((cell) => formatCellText(cell) !== ''));
+
+      const importedCounts = dataRows
         .map((row) => formatCellText(row[mapping.countIndex]))
         .filter((value) => value !== '');
 
@@ -117,14 +123,26 @@ export default function Screen7DataEntry() {
         return;
       }
 
-      const nextRows = importedCounts.map((count, index) => [
-        String(index + 1),
-        '',
-        '',
-        count,
-        '',
-        '',
-      ]);
+      const nextRows = dataRows
+        .filter((row) => formatCellText(row[mapping.countIndex]) !== '')
+        .map((row, index) => {
+          const count = formatCellText(row[mapping.countIndex]);
+          const rawTime = mapping.timeIndex >= 0
+            ? formatCellText(row[mapping.timeIndex])
+            : '';
+          const tSec = parseFloat(rawTime);
+          const durMin = Number.isFinite(tSec) && tSec >= 0
+            ? (tSec / 60).toFixed(2)
+            : '';
+          return [
+            String(index + 1),
+            rawTime,   // 1: Elapsed Time (s) ← from Preset Time column
+            durMin,    // 2: Duration (min)   ← auto-computed
+            count,     // 3: Counts Reading
+            '',        // 4: Corrected (computed later)
+            '',        // 5: Log N (computed later)
+          ];
+        });
 
       setRows(nextRows);
       Alert.alert('Import Complete', `Loaded ${importedCounts.length} count value(s) from ${asset.name || 'the Excel file'}.`);
@@ -211,21 +229,21 @@ export default function Screen7DataEntry() {
     return rows.map(r => {
       const tSec = parseFloat(r[1]);
       const countsReading = parseFloat(r[3]);
-      
+
       let corrected = r[4];
       let lnN = r[5];
-      
+
       const durationMin = parseFloat(r[2]);
-      
+
       if (Number.isFinite(countsReading)) {
         const cpsPerMin = Number.isFinite(durationMin) && durationMin > 0
           ? countsReading / durationMin
           : countsReading;
 
         const correctedVal = cpsPerMin - numericBG;
-        
+
         corrected = Number.isFinite(correctedVal) ? correctedVal.toFixed(2) : r[4];
-        
+
         if (correctedVal > 0) {
           lnN = Math.log(correctedVal).toFixed(2);
         } else {
@@ -280,16 +298,16 @@ export default function Screen7DataEntry() {
   // Safeguard against non-finite values that cause SVG path errors
   const safeGraphData = useMemo(() => {
     if (!graphData.values.length) return { labels: [], values: [], lineYs: [] };
-    
+
     // Filter out any non-finite values
     const validIndices = graphData.values
       .map((v, i) => Number.isFinite(v) && Number.isFinite(graphData.lineYs[i]) ? i : -1)
       .filter(i => i >= 0);
-    
+
     if (validIndices.length === 0) {
       return { labels: ['1'], values: [0], lineYs: [0] };
     }
-    
+
     return {
       labels: validIndices.map(i => graphData.labels[i]),
       values: validIndices.map(i => graphData.values[i]),
@@ -306,7 +324,7 @@ export default function Screen7DataEntry() {
       Alert.alert('Error', 'Enter a valid positive Half-life (T½).');
       return;
     }
-    const lambda = 0.693 / t; 
+    const lambda = 0.693 / t;
     setDecayConstant(lambda.toFixed(4));
   };
 
@@ -373,7 +391,7 @@ export default function Screen7DataEntry() {
                 'Corrected Counts / min',
                 'Log N',
               ].map((h, i) => (
-                <Text key={i} style={[styles.cell, styles.headCell]}>
+                <Text key={i} style={[styles.cell, styles.headCell, i === 0 ? styles.cellSno : styles.cellData]}>
                   {h}
                 </Text>
               ))}
@@ -387,13 +405,13 @@ export default function Screen7DataEntry() {
               {rows.map((r, rIdx) => (
                 <View key={rIdx} style={styles.row}>
                   {/* S.No. */}
-                  <Text style={[styles.cell, styles.readOnly]}>
+                  <Text style={[styles.cell, styles.cellSno, styles.readOnly]}>
                     {computedRows[rIdx][0]}
                   </Text>
 
                   {/* Elapsed Time (s) - editable */}
                   <TextInput
-                    style={styles.inputCell}
+                    style={[styles.inputCell, styles.cellData]}
                     keyboardType="numeric"
                     value={rows[rIdx][1]}
                     onChangeText={t => updateCell(t, rIdx, 1)}
@@ -401,7 +419,7 @@ export default function Screen7DataEntry() {
 
                   {/* Duration (min) - AUTO, read-only */}
                   <TextInput
-                    style={[styles.inputCell, styles.readOnly]}
+                    style={[styles.inputCell, styles.cellData, styles.readOnly]}
                     keyboardType="numeric"
                     value={rows[rIdx][2]}
                     editable={false}
@@ -409,7 +427,7 @@ export default function Screen7DataEntry() {
 
                   {/* Counts Reading */}
                   <TextInput
-                    style={styles.inputCell}
+                    style={[styles.inputCell, styles.cellData]}
                     keyboardType="numeric"
                     value={rows[rIdx][3]}
                     onChangeText={t => updateCell(t, rIdx, 3)}
@@ -417,7 +435,7 @@ export default function Screen7DataEntry() {
 
                   {/* Corrected Counts / min - Computed */}
                   <TextInput
-                    style={[styles.inputCell, styles.readOnly]}
+                    style={[styles.inputCell, styles.cellData, styles.readOnly]}
                     keyboardType="numeric"
                     value={computedRows[rIdx][4]}
                     editable={false}
@@ -425,7 +443,7 @@ export default function Screen7DataEntry() {
 
                   {/* Log N - Computed */}
                   <TextInput
-                    style={[styles.inputCell, styles.readOnly]}
+                    style={[styles.inputCell, styles.cellData, styles.readOnly]}
                     keyboardType="numeric"
                     value={computedRows[rIdx][5]}
                     editable={false}
@@ -468,10 +486,10 @@ export default function Screen7DataEntry() {
                       { data: safeGraphData.values, strokeWidth: 0, color: () => 'rgba(0,0,0,0)' },
                       safeGraphData.lineYs.length
                         ? {
-                            data: safeGraphData.lineYs,
-                            strokeWidth: 2.5,
-                            color: () => 'rgba(0,0,0,1)',
-                          }
+                          data: safeGraphData.lineYs,
+                          strokeWidth: 2.5,
+                          color: () => 'rgba(0,0,0,1)',
+                        }
                         : { data: [], color: () => 'rgba(0,0,0,0)' },
                     ],
                   }}
@@ -563,12 +581,12 @@ export default function Screen7DataEntry() {
               <Text style={styles.unitText}>/ unit T</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 4, marginLeft: 2 }}>
               <TouchableOpacity style={styles.smallCalcBtn} onPress={computeDecay} activeOpacity={0.7}>
-                <Text style={styles.bigBtnText}>Calculate</Text>
+                <Text style={styles.calcBtnText}>Calculate</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.smallCalcBtn} onPress={clearDecayConstant} activeOpacity={0.7}>
-                <Text style={styles.bigBtnText}>Clear</Text>
+                <Text style={styles.calcBtnText}>Clear</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -630,28 +648,30 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     overflow: 'hidden',
   },
-  row: { flexDirection: 'row' },
+  row: { flexDirection: 'row', width: '100%' },
   headRow: { backgroundColor: '#a6a6a6' },
   cell: {
-    width: 95,
+    width: '18%',
     paddingVertical: 10,
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#dcdcdc',
     textAlign: 'center',
     fontWeight: '700',
-    fontSize: 10,
+    fontSize: 11,
   },
-  headCell: { fontSize: 10 },
+  cellSno: { width: '10%' },
+  cellData: { width: '18%' },
+  headCell: { fontSize: 13 },
   inputCell: {
-    width: 95,
+    width: '18%',
     paddingVertical: 10,
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#dcdcdc',
     textAlign: 'center',
     backgroundColor: '#fff',
-    fontSize: 10,
+    fontSize: 11,
   },
   readOnly: { backgroundColor: '#eee' },
   controlsRow: {
@@ -668,12 +688,13 @@ const styles = StyleSheet.create({
   },
   smallCalcBtn: {
     backgroundColor: '#808080',
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
     alignSelf: 'flex-start',
   },
   bigBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  calcBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   rightPane: { width: '54%', padding: 10, backgroundColor: '#F7F1BE' },
   graphBox: {
     backgroundColor: '#fff',

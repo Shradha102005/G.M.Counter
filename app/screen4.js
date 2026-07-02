@@ -90,7 +90,7 @@ export default function Screen4() {
               </Text>
 
               <Text style={styles.sectionTitle}>Equipment / Accessories Required</Text>
-              <Text style={styles.paragraph}>• G.M Counting System 601A/602A with A.C main chord{'\n'}
+              <Text style={styles.paragraph}>• G.M Counting System GC603T with A.C main chord{'\n'}
                 • G.M Detector (End window) stand (or) G.M Detector / source holder bench{'\n'}
                 • Radioactive source kit{'\n'}
                 • Aluminium, Copper & Lead Absorber sets

@@ -356,15 +356,15 @@ export default function Screen8DataEntry() {
                   <TextInput
                     key={`${selectedTable}-${rowIndex}-${colIndex}`}
                     style={[
-                      // Net Counts (col 3) and S.No (col 0) are read-only
-                      colIndex === 0 || colIndex === 3 ? styles.snoCell : styles.inputCell,
+                      // S.No (0), Absorber (1), and Net Counts (3) are read-only
+                      colIndex === 0 || colIndex === 1 || colIndex === 3 ? styles.snoCell : styles.inputCell,
                       colIndex === 0 && styles.colSno,
                       colIndex === 1 && styles.colAbsorber,
                       colIndex === 2 && styles.colCounts,
                       colIndex === 3 && styles.colNetCounts,
                     ]}
                     value={cell}
-                    editable={colIndex !== 0 && colIndex !== 3}
+                    editable={colIndex === 2}
                     onChangeText={(text) => updateCell(selectedTable, rowIndex, colIndex, text)}
                     keyboardType={colIndex === 2 ? 'numeric' : 'default'}
                   />
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   },
 
   /* Table */
-  tableSection: { marginBottom: 14 },
+  tableSection: { marginBottom: 14, width: '65%' },
   tableBox: {
     borderWidth: 1.5,
     borderColor: '#999',
@@ -508,10 +508,10 @@ const styles = StyleSheet.create({
   headRow: { backgroundColor: '#a6a6a6' },
 
   /* Column flex widths */
-  colSno:       { flex: 0.55 },
-  colAbsorber:  { flex: 2.4 },
-  colCounts:    { flex: 1.1 },
-  colNetCounts: { flex: 1.1 },
+  colSno:       { flex: 0.6 },
+  colAbsorber:  { flex: 1.5 },
+  colCounts:    { flex: 1.5 },
+  colNetCounts: { flex: 1.5 },
 
   /* Shared cell base */
   cell: {
